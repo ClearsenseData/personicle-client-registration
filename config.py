@@ -2,10 +2,10 @@ from configparser import ConfigParser
 import os
 
 if os.environ.get("PRODUCTION","0")== "1":
-    api_server = os.environ('API_SERVER')
-    client_registration = os.environ('CLIENT_REGISTRATION')
-    group_assignment_id = os.environ('GROUP_ASSIGNMENT_ID')
-    group_assignment_endpoint= os.environ('GROUP_ASSIGNMENT_ENDPOINT')
+    api_server = os.environ['API_SERVER']
+    client_registration = os.environ['CLIENT_REGISTRATION']
+    group_assignment_id = os.environ['GROUP_ASSIGNMENT_ID']
+    group_assignment_endpoint= os.environ['GROUP_ASSIGNMENT_ENDPOINT']
 
 
 else:
