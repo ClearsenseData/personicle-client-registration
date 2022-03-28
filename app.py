@@ -3,7 +3,7 @@ from sys import api_version
 from flask import Flask, render_template, url_for, flash, redirect,request, logging
 import requests
 from header import headers
-from config import client_registration,group_assignment
+from config import client_registration,group_assignment_id, group_assignment_endpoint
 from forms import NewSecretDeleteGetForm, RegisterForm, UpdateForm
 app = Flask(__name__)
 
@@ -45,10 +45,10 @@ def register():
         # 'initiate_login_uri': 'https://www.example-application.com/oauth2/login',
     }
 
-        res = requests.post(f"{client_registration['ENDPOINT']}", json=json_data, headers=headers)
+        res = requests.post(f"{client_registration}", json=json_data, headers=headers)
         
         if res.status_code == 201:
-            assign_users = requests.put(f"{group_assignment['ENDPOINT']}/{res.json()['client_id']}/groups/{group_assignment['GROUP_ID']}", headers=headers)
+            assign_users = requests.put(f"{group_assignment_endpoint}/{res.json()['client_id']}/groups/{group_assignment_id}", headers=headers)
             if assign_users.status_code == 200:
             
                 flash(f"Your client id is {res.json()['client_id']}. Your client secret it {res.json()['client_secret']}",'success')
@@ -96,7 +96,7 @@ def update_app():
             # 'initiate_login_uri': 'https://www.example-application.com/oauth2/login',
         }
 
-        res = requests.put(f"{client_registration['ENDPOINT']}/{client_id}", json=json_data, headers=headers)
+        res = requests.put(f"{client_registration}/{client_id}", json=json_data, headers=headers)
         print(res.json())
         if res.status_code == 200:
             flash("Your app settings are successfully updated",'success')
@@ -113,7 +113,7 @@ def new_secret():
     if request.method == 'POST' and form.validate():
         client_id = form.client_id.data
 
-        res = requests.post(f"{client_registration['ENDPOINT']}/{client_id}/lifecycle/newSecret", headers=headers)
+        res = requests.post(f"{client_registration}/{client_id}/lifecycle/newSecret", headers=headers)
 
         if res.status_code == 200:
             print(res.json())
@@ -129,7 +129,7 @@ def get_details():
     if request.method == 'POST' and form.validate():
         client_id = form.client_id.data
 
-        res = requests.get(f"{client_registration['ENDPOINT']}/{client_id}", headers=headers)
+        res = requests.get(f"{client_registration}/{client_id}", headers=headers)
         
         if res.status_code == 200:
             flash(f"Your client app  details are {res.json()}",'success')
@@ -146,7 +146,7 @@ def delete_app():
     if request.method == 'POST' and form.validate():
         client_id = form.client_id.data
 
-        res = requests.delete(f"{client_registration['ENDPOINT']}/{client_id}", headers=headers)
+        res = requests.delete(f"{client_registration}/{client_id}", headers=headers)
         
         if res.status_code == 204:
             flash(f"Your client app  {client_id} is deleted.",'warning')
