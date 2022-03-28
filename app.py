@@ -6,6 +6,7 @@ from header import headers
 from config import client_registration,group_assignment_id, group_assignment_endpoint
 from forms import NewSecretDeleteGetForm, RegisterForm, UpdateForm
 app = Flask(__name__)
+app.secret_key="secret_key"
 
 @app.route('/')
 def index():
@@ -157,12 +158,8 @@ def delete_app():
 
 
 
-   
-
-
-
 if __name__ == '__main__':
-    app.secret_key="secret_key"
+    
     app.run(debug=True)
 
 
