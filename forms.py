@@ -4,7 +4,7 @@ from sys import api_version
 from flask import Flask, render_template, url_for, flash, redirect,request, logging
 from wtforms import Form, StringField, validators, TextAreaField
 from header import headers
-from config import client_registration,group_assignment
+
 
 class NewSecretDeleteGetForm(Form):
     client_id = StringField("Enter your client id",[validators.DataRequired()])
