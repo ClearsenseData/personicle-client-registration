@@ -3,15 +3,97 @@ from sys import api_version
 from flask import Flask, render_template, url_for, flash, redirect,request, logging
 import requests
 from header import headers
-from config import client_registration,group_assignment_id, group_assignment_endpoint
+from config import client_registration,group_assignment_id, group_assignment_endpoint, policy_endpoint
 from forms import NewSecretDeleteGetForm, RegisterForm, UpdateForm
 app = Flask(__name__)
 app.secret_key="secret_key"
+
 
 @app.route('/')
 def index():
     return render_template('home.html')
 
+# def update_policies(access_scopes, res, headers):
+#      for scope in access_scopes:
+#         get_policy = requests.get(f"{policy_endpoint}/{policy_to_id[scope]}", headers=headers)
+#         clients = get_policy.json()['conditions']['clients']['include']
+#         clients.append(res.json()['client_id'])
+#         policy_data = {
+#             "type": "OAUTH_AUTHORIZATION_POLICY",
+#             "id": f"{policy_to_id[scope]}",
+#             "name": f"{scope}",
+#             "description": "Data access policy",
+#             "priority": 1,
+#             "status": "ACTIVE",
+#             "conditions": {
+#                 "clients": {
+#                 "include": clients
+#                 }
+#             }
+#         }
+#         updated_policy = requests.put(f"{policy_endpoint}/{policy_to_id[scope]}", json=policy_data, headers=headers)
+        
+#      return updated_policy
+
+def create_policy(res,headers):
+    policy_data = {
+        "type": "OAUTH_AUTHORIZATION_POLICY",
+        "status": "ACTIVE",
+        "name": f"{res.json()['client_id']} Policy",
+        "description": "Data access policy",
+        "priority": 1,
+        "conditions": {
+            "clients": {
+                "include": [
+                    f"{res.json()['client_id']}",
+                ],
+            },
+        },
+    }
+
+    created_policy = requests.post(f"{policy_endpoint}",json=policy_data,headers=headers)
+    # print(created_policy.json())
+    # print(created_policy.status_code)
+
+    return created_policy
+
+def create_rule(res,headers,access_scopes,created_policy):
+    access_scopes += ['openid','email','profile','phone','address','offline_access']
+    rule_data = {
+        "type": "RESOURCE_ACCESS",
+        "name": "Data access policy Rule",
+        "priority": 1,
+        "conditions": {
+            "people": {
+                "groups": {
+                    "include": [
+                        "EVERYONE",
+                    ],
+                },
+            },
+            "grantTypes": {
+                "include": [
+                    "implicit",
+                    "authorization_code",
+                    "password",
+                ],
+            },
+            "scopes": {
+                "include": access_scopes,
+            },
+        },
+        "actions": {
+            "token": {
+                "accessTokenLifetimeMinutes": 60,
+                "refreshTokenLifetimeMinutes": 0,
+                "refreshTokenWindowMinutes": 10080,
+            },
+        },
+    }   
+    created_rule= requests.post(f"{policy_endpoint}/{created_policy.json()['id']}/rules",json=rule_data,headers=headers)
+    # print(created_rule)
+    # print(created_rule.status_code)
+    return created_rule
 
 @app.route('/register', methods=['GET','POST'])
 def register():
@@ -20,7 +102,8 @@ def register():
         client_name = form.client_name.data
         client_uri = form.client_uri.data
         redirect_uri = form.redirect_uri.data
-
+        access_scopes = form.access_scopes.data
+        # print(access_scopes)
         json_data = {
         'client_name': client_name,
         'client_uri': client_uri,
@@ -40,24 +123,29 @@ def register():
             'authorization_code',
             'refresh_token',
             'implicit',
-            'client_credentials',
         ],
         'token_endpoint_auth_method': 'client_secret_basic',
         # 'initiate_login_uri': 'https://www.example-application.com/oauth2/login',
     }
 
         res = requests.post(f"{client_registration}", json=json_data, headers=headers)
-        
+        # print(res.json())
         if res.status_code == 201:
             assign_users = requests.put(f"{group_assignment_endpoint}/{res.json()['client_id']}/groups/{group_assignment_id}", headers=headers)
-            if assign_users.status_code == 200:
-            
-                flash(f"Your client id is {res.json()['client_id']}. Your client secret it {res.json()['client_secret']}",'success')
-                return redirect(url_for('index'))
+            # updated_policy = update_policies(access_scopes,res, headers)
+            created_policy = create_policy(res,headers)
+           
+            if assign_users.status_code == 200 and created_policy.status_code == 201:
+                created_rule = create_rule(res,headers,access_scopes,created_policy)
+                if created_rule.status_code == 201:
+                    flash(f"Your client id is {res.json()['client_id']}. Your client secret it {res.json()['client_secret']}",'success')
 
+                    return redirect(url_for('index'))
+            # unable to assigns users to this app
             flash(f"Something went wrong. Please try again",'warning')
-            return redirect(url_for('index'))
+            # return redirect(url_for('index'))
 
+        flash(f"Unable to create your application",'warning')
     return render_template('register.html', form=form) 
 
 
@@ -90,15 +178,14 @@ def update_app():
             'grant_types': [
                 'authorization_code',
                 'refresh_token',
-                'implicit',
-                'client_credentials',
+                'implicit'
             ],
             'token_endpoint_auth_method': 'client_secret_basic',
             # 'initiate_login_uri': 'https://www.example-application.com/oauth2/login',
         }
 
         res = requests.put(f"{client_registration}/{client_id}", json=json_data, headers=headers)
-        print(res.json())
+        # print(res.json())
         if res.status_code == 200:
             flash("Your app settings are successfully updated",'success')
             return redirect(url_for('index'))
@@ -117,7 +204,7 @@ def new_secret():
         res = requests.post(f"{client_registration}/{client_id}/lifecycle/newSecret", headers=headers)
 
         if res.status_code == 200:
-            print(res.json())
+            # print(res.json())
             flash(f"Your new client secret is {res.json()['client_secret']}", 'success')
         else :
             flash(f"Something went wrong. Unable to generate new secret", 'warning')
@@ -134,7 +221,7 @@ def get_details():
         
         if res.status_code == 200:
             flash(f"Your client app  details are {res.json()}",'success')
-            print(res.json())
+            # print(res.json())
         else:
             flash(f"Unable to fetch your app details.",'warning')
     return render_template('details.html', form=form) 
@@ -160,7 +247,7 @@ def delete_app():
 
 if __name__ == '__main__':
     
-    app.run(debug=True)
+    app.run(debug=True, port=8080)
 
 
     
