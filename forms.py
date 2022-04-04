@@ -9,6 +9,9 @@ from header import headers
 class NewSecretDeleteGetForm(Form):
     client_id = StringField("Enter your client id",[validators.DataRequired()])
 
+class GetScopesForm(Form):
+    client_id = StringField("Enter your client id",[validators.DataRequired()])
+
 class RegisterForm(Form):
     client_name = StringField('Your application name', [validators.Length(min=5,max=50), validators.DataRequired()])
     client_uri = StringField('Your application URL', [ validators.DataRequired()])

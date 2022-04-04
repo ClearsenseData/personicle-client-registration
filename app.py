@@ -4,7 +4,7 @@ from flask import Flask, render_template, url_for, flash, redirect,request, logg
 import requests
 from header import headers
 from config import client_registration,group_assignment_id, group_assignment_endpoint, policy_endpoint
-from forms import NewSecretDeleteGetForm, RegisterForm, UpdateForm
+from forms import NewSecretDeleteGetForm, RegisterForm, UpdateForm, GetScopesForm
 app = Flask(__name__)
 app.secret_key="secret_key"
 
@@ -244,6 +244,23 @@ def delete_app():
     return render_template('delete.html', form=form) 
 
 
+@app.route('/get-scopes', methods=['GET','POST'])
+def get_scopes():
+    form = GetScopesForm(request.form)
+
+    if request.method == 'POST' and form.validate():
+        client_id = form.client_id.data.strip()
+
+        policies = requests.get(f"{policy_endpoint}",headers=headers)
+        for policy in policies.json():
+            if client_id in policy['conditions']['clients']['include']:
+                rules = requests.get(f"{policy['_links']['rules']['href']}", headers=headers)
+                if rules.status_code == 200:
+                    scopes = rules.json()[0]['conditions']['scopes']['include']
+                    flash(f'Your scopes: {scopes}', 'success')
+                    return redirect(url_for('index'))
+        flash('No scopes found for your client id', 'warning')
+    return render_template('getScopes.html', form=form) 
 
 if __name__ == '__main__':
     
